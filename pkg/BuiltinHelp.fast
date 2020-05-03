@@ -205,12 +205,16 @@ Typically this is placed somewhere in the header.
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.__getitem__'
-__getitem__() fast[section] returns the Section object from fast.sections dict
+__getitem__(x) or fast[x] returns the Section object from fast.sections dict
 
 This is provided as a convenient shortcut for
 retrieving the Section object from the fast.sections
 dict (i.e. fast.sections[section])
 
+Example
+
+    //.fast >= "//.abc = fast['abc']"
+    
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.__lshift__'

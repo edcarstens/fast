@@ -193,17 +193,21 @@ cs - comment prefix string (default: '//')
 
 Typically this is placed somewhere in the header.
 
-## fast.__getitem__
-\_\_getitem\_\_() fast[section] returns the Section object from fast.sections dict
+## fast.\_\_getitem\_\_
+\_\_getitem\_\_(x) or fast[x] returns the Section object from fast.sections dict
 
 This is provided as a convenient shortcut for
 retrieving the Section object from the fast.sections
 dict (i.e. fast.sections[section])
 
-## fast.__lshift__
-__lshift__(n) fast<<n decreases output indent by n spaces
-## fast.__lt__
-__lt__(x) fast<x sets current section (fast.section) to x
+Example
+
+    //.abc = fast['abc']
+    
+## fast.\_\_lshift\_\_
+\_\_lshift\_\_(n) fast<<n decreases output indent by n spaces
+## fast.\_\_lt\_\_
+\_\_lt\_\_(x) fast<x sets current section (fast.section) to x
 
 A typical usage is shown in the example below. The unary
 operator, '+', pushes current context prior to setting
@@ -217,8 +221,8 @@ Example
     This line is added to section abc
     //.-fast
     
-## fast.__neg__
-__neg__() -fast pops (fast.indent,fast.enable,fast.section) from stack
+## fast.\_\_neg\_\_
+\_\_neg\_\_() -fast pops (fast.indent,fast.enable,fast.section) from stack
 
 The unary operator, '-', pops the context previously
 pushed by the unary operator, '+'. In this case, the '<'
@@ -250,8 +254,8 @@ unsealed prior to being written to disk.
 
 For more info, see writeFile, seal, and unseal
 
-## fast.__pos__
-__pos__() +fast pushes (fast.section,fast.enable,fast.indent) onto stack
+## fast.\_\_pos\_\_
+\_\_pos\_\_() +fast pushes (fast.section,fast.enable,fast.indent) onto stack
 
 The unary operator, '+', pushes the context to the stack
 and turns off standard output. (It does not turn off
@@ -284,8 +288,8 @@ Example
 Don't forget the pop (-fast)! Forgetting this can result
 in confusing errors making debugging it quite difficult.
 
-## fast.__rshift__
-__rshift__(n) fast>>n increases output indent by n spaces
+## fast.\_\_rshift\_\_
+\_\_rshift\_\_(n) fast>>n increases output indent by n spaces
 ## fast.dedentSection
 dedentSection(x) dedents section x
 

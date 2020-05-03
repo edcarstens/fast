@@ -131,14 +131,16 @@ class InfoClass(object):
     def __pos__(self):
         +self.fast
         return self
-    def header(self, section):
+    def header(self, x):
         pass
+    def process(self, x):
+        return x
     def __neg__(self):
         -self.fast
         for i in self.infoObjects:
             +i < self.section
             i.header(self.section)  ## allow for inserting a header
-            self.fast > self.fullSection
+            self.fast > i.process(self.fullSection)
             -i
         return self
     def __gt__(self, x):
@@ -151,8 +153,16 @@ class DocClass(InfoClass):
     def __init__(self, _fast, prefix='doc:', fn='doc.md'):
         self.fn = fn
         super(DocClass, self).__init__(_fast, prefix)
-    def header(self, section):
-        self.fast >= '## ' + section
+    def escape(self, s):
+        rv = re.sub('\_', "\\_", s)
+        return rv
+    def header(self, x):
+        self.fast >= self.escape('## ' + x)
+    def process(self, x):
+        text = self.fast.getSection(x)
+        ntext = self.escape(text)
+        self.fast.setSection(x, ntext)
+        return x
     def write(self):
         #print('DocClass.write')
         +self.fast < ('file:' + self.fn)
