@@ -194,7 +194,7 @@ cs - comment prefix string (default: '//')
 Typically this is placed somewhere in the header.
 
 ## fast.__getitem__
-__getitem__() fast[section] returns the Section object from fast.sections dict
+\_\_getitem\_\_() fast[section] returns the Section object from fast.sections dict
 
 This is provided as a convenient shortcut for
 retrieving the Section object from the fast.sections
@@ -213,20 +213,106 @@ unary operator, '-', pops the previously pushed context.
 
 Example
 
-    +fast < 'abc'
+    //.+fast < 'abc'
     This line is added to section abc
-    -fast
+    //.-fast
     
 ## fast.__neg__
 __neg__() -fast pops (fast.indent,fast.enable,fast.section) from stack
 
+The unary operator, '-', pops the context previously
+pushed by the unary operator, '+'. In this case, the '<'
+operator is setting the current section (fast.section)
+to 'abc'. The pop restores the current section. Every
+pop must be paired with a previous push.
+
+Example
+
+    //.+fast < 'abc'
+    This line is added to section abc
+    //.-fast
+
+If the current section before the pop (-fast) is a
+file section (i.e. has the prefix 'file:') then the
+current section is written to disk as indicated by
+its file section name.
+
+Example
+
+    //.+fast < 'file:abc.txt'
+    This line is added to file section abc.txt
+    //.-fast
+
+The prefix, 'file:', is included in the section name,
+but not the filename. The method, fast.writeFile is
+called. If sections are sealed, the file section is
+unsealed prior to being written to disk.
+
+For more info, see writeFile, seal, and unseal
 
 ## fast.__pos__
 __pos__() +fast pushes (fast.section,fast.enable,fast.indent) onto stack
+
+The unary operator, '+', pushes the context to the stack
+and turns off standard output. (It does not turn off
+writing to sections.) Also, fast.section and fast.indent
+both get reset to ''
+
+It is commonly chained with the '<' operator, which sets
+the current section (fast.section), so it is a convenient
+way to restore the current section later with a pop.
+
+Example
+
+    //.+fast < 'abc'
+    This line is added to section abc
+    //.-fast
+
+
+Another common use is if there are lines you do not
+wish to be output anywhere. FAST packages typically
+start with +fast and end with -fast because you
+generally don't want a package producing output when
+it is included.
+
+Example
+
+    //.+fast
+    This line does not go anywhere!
+    //.-fast
+    
+Don't forget the pop (-fast)! Forgetting this can result
+in confusing errors making debugging it quite difficult.
+
 ## fast.__rshift__
 __rshift__(n) fast>>n increases output indent by n spaces
 ## fast.dedentSection
 dedentSection(x) dedents section x
+
+x - name of section to be dedented (string type)
+
+The '<=' operator is a shortcut for dedentSeetion.
+
+Example
+
+    //.fast <= 'abc'
+
+This gets rid of whatever indention the entire
+contents of section 'abc' has.
+
+FAST takes care of this automatically if you call
+printSection() with an indention specified.
+
+Example
+
+    |123456
+    |     //.fast > 'abc'
+
+In this example, section 'abc' will be printed
+with precisely 5 spaces of indention, regardless
+of its previous indention, because 'abc' is
+dedented automatically first. (The '1' represents
+column 1, which has no indention.)
 
 ## fast.escapeSubChars
 escapeSubChars(s) escapes substitution characters
