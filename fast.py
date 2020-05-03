@@ -1,0 +1,32 @@
+from __future__ import print_function
+import sys
+import os
+
+# Search order for Python modules:
+# (1) current dir (.)
+# (2) ./pkg
+# (3) $FAST_INC_PATH
+# (4) $FAST_INSTALL_PATH/pkg
+# (5) follow standard Python module search order
+
+# Add directories to python module search path
+def _insertIfExists(x):
+    if (os.path.exists(x)):
+        sys.path.insert(0,x)
+if ('FAST_INSTALL_PATH' in os.environ):
+    installPath = os.environ['FAST_INSTALL_PATH']
+else:
+    installPath = '~/python/pet'
+#if ('USER' in os.environ):
+#    _insertIfExists('/user/' + os.environ['USER'] + '/python')
+_insertIfExists(installPath + '/pkg')
+if ('FAST_INC_PATH' in os.environ):
+    _insertIfExists(os.environ['FAST_INC_PATH'])
+_insertIfExists(os.getcwd() + '/pkg')
+sys.path.insert(0, os.getcwd())
+
+import fast_classes
+fast = fast_classes.FastClass(globals())
+(info, doc, args) = fast_classes.setup(fast, installPath)
+fast_classes.process(fast)
+fast_classes.info(fast, args)

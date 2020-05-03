@@ -1,0 +1,3 @@
+//.if (not fast.infoFlag):{
+//. fast.doc.write()
+//.}

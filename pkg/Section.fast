@@ -1,0 +1,32 @@
+//.+fast
+//.if ('Section' not in globals()):{
+//.from sect import SectionBase
+
+//.+doc < 'Section'
+# Section
+
+The class, 'Section', an extension of SectionBase class,
+is useful for creating a hierarchy of named subsections as
+well as binding a section to an object name. This simplifies
+code because you no longer need to reference the section by
+fast.sections[<section name>].
+
+It can be extended and the methods process0 or process can
+be implemented in your extended class to perform input
+processing. The process0 method is called by __neg__. Use
+this for immediate processing of blocks of lines.
+The process method is called once just before the section or
+any of its subsections is output.
+
+//.-doc
+
+//.class Section(SectionBase):{
+//. def __init__(self, _section='', parent=None):{
+//.  super(Section, self).__init__(fast, _section, parent)
+//. }
+//. def create(self, _section='', parent=None):{
+//.  return Section(_section, parent)
+//. }
+//.}
+//.}
+//.-fast
