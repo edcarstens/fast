@@ -17,8 +17,14 @@ class SectionBase(object):
         self.infoOn = True
         self.processEnable = True
         self.text = '' # New - every section object stores its own text
-        self.chomp = SectionChompClass(_fast,parent)
+        self.fn = ''   # set to filename for file section
+        self.chomp = SectionChompClass(self.fast, self)
+        self.rstrip = self.chomp
         self.fast.sections[self.section] = self  # register me with fast.sections
+        self.isTemporary = False  # temporary flag for deletion after printing section
+    def __call__(self, fn=''):
+        self.fn = fn if fn else self.section.split()[-1]
+        return self
     def __iadd__(self, s):
         self.setText(self.getText() + s)
         return self
@@ -35,79 +41,72 @@ class SectionBase(object):
         return x
     def create(self, _section='', parent=None):
         return SectionBase(self.fast, _section, parent)
-    def __lt__(self, subsection):
-        print('SectionBase.__lt__: Warning - Deprecated as of FAST version 4.0')
-        self.subsection = subsection
-        if (len(subsection)):
-            self.fast < (self.section + ' ' + self.subsection)
-        else:
-            self.fast < self.section
-        return self
     def __getattr__(self, subsection):
-        #print 'getattr called'
+        #print('getattr called with ' + subsection)
         self.subsection = subsection
-        x = self.makeValidName(subsection)
+        #x = self.makeValidName(subsection)
         sec = self.create(self.section + ' ' + self.subsection, self)
-        setattr(self, x, sec)
+        #setattr(self, x, sec)
+        setattr(self, self.subsection, sec)
         return sec
-    def __le__(self, subsection):
-        print('SectionBase.__le__: Warning - Deprecated as of FAST version 4.0')
-        self.subsection = subsection
-        if (len(subsection)):
-            self.fast < (self.section + ' ' + self.subsection)
-            x = self.makeValidName(subsection)
-            if (x not in self.__dict__):
-                setattr(self, x, self.create(self.fast.section, self))
-        else:
-            self.fast < self.section
-        return self
     def __neg__(self):
         -self.fast
-        self.process0()
+        self.process()
         return self
-    def __gt__(self, subsection):
-        if (self.processEnable):
-            self.processEnable = False  # process only once
-            self.process()
+    def _gt_helper(self, subsection, _fast):
+        """ helper function for implementing __gt__ and chomp.__gt__ """
         if (len(subsection)):
-            self.fast > (self.section + ' ' + subsection)
+            x = self.makeValidName(subsection)
+            sub = getattr(self, x)
+            #print('_gt_helper created ' + sub.section + ' and ' + x)
+            _fast > sub.section
         else:
-            self.fast > self.section
+            if (self.processEnable):
+                self.processEnable = False  # process only once
+                if (self.fast.sealIncludeSection and len(self.fast.section)):
+                    self.fast.printWithIndent(self.fast.commentString + self.fast.codeChar + "fast.sections['" + self.section + "'].processFinal()")
+                else:
+                    self.processFinal()
+            _fast > self.section
+            
+    def __gt__(self, subsection):
+        self._gt_helper(subsection, self.fast)
     def write(self, fn=''):
         if (len(fn) == 0):
-            fn = self.makeValidName(self.section) # + '.txt' # default filename
-        if (self.infoOn):
-            +self.fast
-            self.fast.on() >= 'SectionBase.write: Info - writing section to file ' + fn
-            -self.fast
-        #+self.fast < ('file:' + fn)
-        #self > ''
-        #-self.fast
-        self.fast.writeFile(fn, fn)
-
-    def process0(self):
+            if (self.fn):
+                fn = self.fn
+            #else:
+            #    fn = self.makeValidName(self.section)
+        if (fn):  ## don't do anything for non-file sections
+            if (self.infoOn):
+                +self.fast
+                self.fast.on() >= 'SectionBase.write: Info - writing section (' + self.section + ') to file "' + fn + '"'
+                -self.fast
+            self.fast.writeFile(self.section, fn)
+        return self
+    def process(self):
         """
         Implement this method in your subclass if you need to
-        process input section(s) immediately upon read-in. This
+        process input chunks sooner than processFinal. This
         method is always called from the __neg__ method.
         You may use getLines() to loop through the section line by
         line:
         
-        //. for line in self.getLines():
+        //. for line in self.getLines():{
 
         The processed contents can be passed to setText, or one
         can clear the section and rewrite it, and/or one can write
         output to other sections or subsections.
         """
         pass
-    def process(self):
+    def processFinal(self):
         """
         Implement this method in your subclass if you need to
         process input section(s) prior to writing output section(s).
         You may use getLines() to loop through the section line by
         line:
         
-        //. for line in self.getLines():
+        //. for line in self.getLines():{
 
         The processed contents can be passed to setText, or one
         can clear the section and rewrite it, and/or one can write
@@ -123,7 +122,7 @@ class SectionBase(object):
 
 class SectionChompClass(object):
     """ chomp class """
-    def __init__(self, _fast, parent=None):
+    def __init__(self, _fast, parent):
         self.fast = _fast
         self.parent = parent
         self.c = ','
@@ -133,8 +132,4 @@ class SectionChompClass(object):
         self.linecc = lcc
         return self
     def __gt__(self, x):
-        if x:
-            section = self.parent.section + ' ' + x
-        else:
-            section = self.parent.section
-        self.fast.chomp(self.c, self.linecc) > section
+        self.parent._gt_helper(x, self.fast.chomp(self.c, self.linecc))

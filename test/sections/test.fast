@@ -1,0 +1,84 @@
+======================================================
+TEST: subsections
+------------------------------------------------------
+//.top = Section('top')
+//.+top.a
+Section A
+------------------------------------------------------
+  //.top.a > 'a1'   ## print subsection a1
+AA----------------------------------------------------
+  //.top.a.a2 > ''  ## another way to do it
+//.-top.a
+//.+top.b
+Section B
+------------------------------------------------------
+parent of top.a is '@top.a.parent.section@'
+parent of top.a.a1 is '@@a1.parent.section@@'
+BB----------------------------------------------------
+//.top > 'a'
+------------------------------------------------------
+//.-top.b
+//.+top.a.a1
+Section A1
+//.-top.a.a1
+//.a1 = top.a.a1
+//.+top.a.a2
+Section A2
+//.-top.a.a2
+//.### Peek at current text in Section A ###
+@top.a.getText()@
+------------------------------------------------------
+//.### Peek at current text in Section B ###
+@top.b.getText()@
+------------------------------------------------------
+//.top > 'a'
+------------------------------------------------------
+//.top.b > ''
+------------------------------------------------------
+
+======================================================
+TEST: fast.seal, fast.unseal
+------------------------------------------------------
+//.+top
+//.top > 'b'   ## sealed
+//.-top
+
+
+XX----------------------------------------------------
+@top.getText()@
+
+//.fast.unseal()
+//.+top
+//.top > 'b'   ## this unseals Section B
+//.-top
+//.## (top still has some sealed sections)
+//.fast.seal()
+
+YY----------------------------------------------------
+@top.getText()@
+
+
+ZZ----------------------------------------------------
+//.top > ''   ## unseals output of Section top
+
+ZZ----------------------------------------------------
+//.### But Section top itself is still sealed
+@top.getText()@
+
+
+======================================================
+TEST: Section.write, fast.writeFile
+------------------------------------------------------
+//.#fast.seal()
+//.#top.write('top.txt')
+//.top('top.txt').write()
+======================================================
+TEST: Write to file (testfile)
+------------------------------------------------------
+//.top = Section('top')
+//.+top.aa
+section aa
+//.-top.aa
+//.+top.testfile('testfile.txt')
+//.top > 'aa'
+//.-top.testfile.write()

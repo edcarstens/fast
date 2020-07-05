@@ -1,0 +1,41 @@
+//.#import re
+======================================================
+TEST: sections
+------------------------------------------------------
+//.+fast
+//.class Apple(Section):{
+//. def add(self):{
+//.  +self('Apple.txt')
+APPLE SECTION
+//.  self > 'ss1'
+//.  self.ss2 > ''  ## alt way
+//.  -self
+//.  +self.ss2
+SS2 SUBSECTION
+//.  -self.ss2
+//.  self.ss2.isTemporary = True
+//. }
+//.}
+//.apple = Apple('apple')
+
+//.class Banana(Section):{
+//. def add(self, apple):{
+//.  +apple.ss1
+BANANA FEATURE
+//.  -apple.ss1
+//. }
+//.}
+//.banana = Banana('banana')
+
+//.-fast
+//.banana.add(apple)
+//.apple.add()
+//.fast.writeFiles()
+//.fast.doc.write()
+//.for x in fast.sections:{
+//. m = re.match(r'.*:', x)
+//. if (not m):{
+@x@
+//. }
+//.}
+

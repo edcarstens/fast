@@ -1,0 +1,11 @@
+///fast.subChar1('{')
+///fast.subChar2('}')
+======================================================
+TEST: fast.escapeSubChars
+------------------------------------------------------
+fast._subChar1 = {fast._subChar1}
+fast._subChar2 = {fast._subChar2}
+//.a2 = fast.escapeSubChars('using curly braces { and }')
+a2 = {a2} or @a2@
+------------------------------------------------------
+

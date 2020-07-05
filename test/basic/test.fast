@@ -1,0 +1,173 @@
+//.+fast
+                                          doc - special object used for custom documentation
+                                   fast([cs]) ---- prints file generation info including a timestamp
+                          fast.__getitem__(x) ---- or fast[x] returns the Section object from fast.sections dict
+                           fast.__lshift__(n) ---- or fast<<n decreases output indent by n spaces
+                               fast.__lt__(x) ---- or fast<x sets current section (fast.section) to x
+                               fast.__neg__() ---- or -fast pops (fast.indent,fast.enable,fast.section) from stack
+                               fast.__pos__() ---- or +fast pushes (fast.section,fast.enable,fast.indent) onto stack
+                           fast.__rshift__(n) ---- or fast>>n increases output indent by n spaces
+                        fast.dedentSection(x) ---- dedents section x
+                       fast.escapeSubChars(s) ---- escapes substitution characters
+                             fast.getLines(x) ---- returns list of lines of section x
+                           fast.getSection(x) ---- gets text (contents) of section x
+           fast.include(fn, [skipFirstLines]) - includes FAST file
+                       fast.includeSection(x) ---- includes section x
+                                   fast.off() ---- disables FAST output
+                                    fast.on() ---- enables FAST output
+                         fast.printSection(x) ---- prints contents of section x to current section
+                      fast.printWithIndent(s) ---- print string s to current section
+                      fast.readFile(fn, [cs]) - read file, strip blank lines and comments, return list of lines
+              fast.removeLastChar(x,[c],[cs]) ---- remove last character (c) in section x
+                                  fast.seal() ---- seals all sections
+                     fast.setSection(x, text) ---- sets text of section x
+                                 fast.soff(x) ---- disables writing to section x
+                                  fast.son(x) ---- enables writing to section x
+                            fast.subChar([s]) ---- substitution character (two usages)
+                           fast.subChar1([s]) ---- left substitution character (two usages)
+                           fast.subChar2([s]) ---- right substitution character (two usages)
+                                fast.unseal() ---- useals all sections
+fast.writeFile(sfn, fn, [chompMe], [c], [cs]) - writes section sfn to disk as fn
+                                         info - special object used for adding custom info
+
+//.-fast
+======================================================
+TEST: fast()
+------------------------------------------------------
+//.fast()
+------------------------------------------------------
+//.fast('#')
+------------------------------------------------------
+//.fast('//', 0)
+------------------------------------------------------
+
+======================================================
+TEST: +fast, -fast, and fast<x
+------------------------------------------------------
+//.+fast < 'abc'
+This line goes into section abc
+//.-fast
+//.fast > 'abc'
+------------------------------------------------------
+
+======================================================
+TEST: fast[x]
+------------------------------------------------------
+//.abc = fast['abc']
+abc.section = @abc.section@
+abc.text = @abc.getText()@
+------------------------------------------------------
+
+======================================================
+TEST: fast>>n, fast<<n
+------------------------------------------------------
+123456789: indention:@len(fast.indent)@
+//.fast >> 4
+56789: indention:@len(fast.indent)@
+//.fast << 4
+123456789: indention:@len(fast.indent)@
+------------------------------------------------------
+
+======================================================
+TEST: fast.dedentSection
+------------------------------------------------------
+//.+fast < 'xyz'
+  This line is indented by 2
+    This one by 4
+      This one by 6
+  This line is indented by 2
+//.-fast
+//.fast > 'xyz'   ## indented 2 spaces
+------------------------------------------------------
+ //.fast > 'xyz'  ## indented 1 space
+------------------------------------------------------
+//.fast > 'xyz'   ## indented 2 spaces
+------------------------------------------------------
+//.fast.dedentSection('xyz')
+//.fast > 'xyz'   ## no indent
+------------------------------------------------------
+
+======================================================
+TEST: fast.escapeSubChars
+------------------------------------------------------
+//.a1 = fast.escapeSubChars('joe@aol.com; ed@juggler.net')
+a1 = @a1@
+------------------------------------------------------
+
+======================================================
+TEST: fast.getLines
+------------------------------------------------------
+//.for line in fast.getLines('xyz'):{
+line: @line@
+//.}
+------------------------------------------------------
+
+======================================================
+TEST: fast.getSection
+------------------------------------------------------
+//.xyz = fast.getSection('xyz')
+//.for line in xyz.splitlines():{
+line: @line@
+//.}
+------------------------------------------------------
+
+======================================================
+TEST: fast.off, fast.on
+------------------------------------------------------
+//.fast.off()
+This line should be discarded
+//.fast.on()
+This line is printed
+------------------------------------------------------
+
+======================================================
+TEST: fast.printWithIndent
+------------------------------------------------------
+//.fast >= "//.-fast  ## this is a pop"
+//.fast >= "This @1+2@ is an expression substitution"
+------------------------------------------------------
+
+======================================================
+TEST: fast.removeLastChar (chomp or rstrip)
+------------------------------------------------------
+//.+fast < 'mylist1'
+a, // trailing comment a
+b, // trailing comment b
+c, // trailing comment c
+//.-fast
+//.fast.chomp < 'mylist1'
+//.for line in fast.getLines('mylist1'):{
+line: @line@
+//.}
+------------------------------------------------------
+//.+fast < 'mylist2'
+x: # trailing comment x
+y: # trailing comment y
+z: # trailing comment z
+//.-fast
+//.fast.chomp(':','#') > 'mylist2'
+------------------------------------------------------
+
+======================================================
+TEST: fast.setSection
+------------------------------------------------------
+//.fast.setSection('abc', fast.getSection('xyz'))
+//.fast > 'abc'  ## identical to xyz now
+------------------------------------------------------
+
+======================================================
+TEST: fast.soff, fast.son
+------------------------------------------------------
+//.+fast < 'abc'
+This line goes into section 'abc'
+//.-fast
+//.fast.soff('abc')
+//.+fast < 'abc'
+This line gets printed to stdout
+//.-fast
+//.fast.son('abc')
+//.+fast < 'abc'
+This line also goes into section 'abc'
+//.-fast
+//.fast > 'abc'
+------------------------------------------------------

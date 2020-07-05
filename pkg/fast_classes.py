@@ -91,17 +91,19 @@ class ChompClass(object):
         self.fast.removeLastChar(x, self.c, self.linecc)
     """ //.fast.chomp > 'section' """
     def __gt__(self, x):
-        if (self.fast.sealIncludeSection):
+        if (self.fast.sealIncludeSection and len(self.fast.section)):
             self.fast.printWithIndent(self.fast.commentString + self.fast.codeChar +
                                      "fast.includeSectionChomp('" + x + "','" +
                                      self.c + "','" + self.linecc + "')")
         else:
             self.fast.includeSectionChomp(x, self.c, self.linecc)
+    def printSection(self, x):
+        self.fast.removeLastChar(x, self.c, self.linecc).printSection(x)
     """ //.-fast.chomp """
     def __neg__(self):
-        m = re.match(self.filePrefix, self.section)
-        if (m):
-            self.fast.writeFile(self.section, m.group(1), True, self.c, self.linecc)
+        #fn = self.fast.getFileName()
+        #if (fn):
+        #    self.fast.writeFile(self.section, fn, True, self.c, self.linecc)
         self.indent = self.stack.pop()
         self.enable = self.stack.pop()
         self.section = self.stack.pop()
@@ -140,12 +142,15 @@ class InfoClass(object):
         for i in self.infoObjects:
             +i < self.section
             i.header(self.section)  ## allow for inserting a header
-            self.fast > i.process(self.fullSection)
+            x = i.process(self.fullSection)
+            self.fast.printSection(x)
             -i
         return self
     def __gt__(self, x):
         section = self.sectionPrefix + x
-        self.fast > section
+        #self.fast > section
+        self.fast.printSection(section)
+        #self.fast.includeSection(section)
         return self
 
 class DocClass(InfoClass):
@@ -161,17 +166,24 @@ class DocClass(InfoClass):
     def process(self, x):
         text = self.fast.getSection(x)
         ntext = self.escape(text)
-        self.fast.setSection(x, ntext)
-        return x
+        ## Create a new section for ntext
+        z = self.fast.createSection()
+        self.fast.setSection(z.section, ntext)
+        z.isTemporary = True
+        return z.section
     def write(self):
-        #print('DocClass.write')
-        +self.fast < ('file:' + self.fn)
+        print('DocClass.write')
+        +self.fast < self.fn
+        self.fast.setFileName(self.fn) # set filename of section
         sections = self.sections
         #sections.sort()
         for x in sections:
-             self > x
+            #print('Writing section ' + x)
+            self > x
+            #self.fast.includeSection(x)
         self.fast.unseal() ## prevent -fast from unsealing
         -self.fast
+        self.fast[self.fn].write(self.fn)
         self.fast.seal()
         return self
 
@@ -179,12 +191,13 @@ class FastClass(object):
     """ fast class """
     
     version = '1.0.0'
-    newline = '\n'
+    newline = '\r\n'
 
     def subChar(self, x=''):
         if (x):
             self._subChar1 = x
             self._subChar2 = x
+            self._initSubVar()
         if (self.sealIncludeSection and self.enableSealedSubstitution):
             return self._subChar1 + 'fast._subChar1' + self._subChar2
         else:
@@ -193,6 +206,7 @@ class FastClass(object):
     def subChar1(self, x=''):
         if (x):
             self._subChar1 = x
+            self._initSubVar()
         if (self.sealIncludeSection and self.enableSealedSubstitution):
             return self._subChar1 + 'fast._subChar1' + self._subChar2
         else:
@@ -201,6 +215,7 @@ class FastClass(object):
     def subChar2(self, x=''):
         if (x):
             self._subChar2 = x
+            self._initSubVar()
         if (self.sealIncludeSection and self.enableSealedSubstitution):
             return self._subChar1 + 'fast._subChar2' + self._subChar2
         else:
@@ -215,6 +230,13 @@ class FastClass(object):
             return s[:idx1] + self.subChar1() + self.escapeSubChars(s[idx1+1:])
         return s
         
+    def _initSubVar(self):
+        self.subVar = re.compile('^(.*?)\\' + self._subChar1 + '(.*?)\\' + self._subChar2 + '(.*)')
+        if (self._subChar1 == self._subChar2):
+            self.subZeroReplace = self._subChar1         # @@ => @
+        else:
+            self.subZeroReplace = self._subChar1 + self._subChar2    # {} => {}
+
     def __init__(self, globalvars):
         self._subChar1 = '@'
         self._subChar2 = '@'
@@ -224,11 +246,7 @@ class FastClass(object):
         self.immCodePrefix = re.compile('^\s*' + self.commentString + '/(.*)')
         self.codePrefix = re.compile(tmp + '\.(\s*)(.*)')
         self.codeChar = '.'
-        self.subVar = re.compile('^(.*?)\\' + self._subChar1 + '(.*?)\\' + self._subChar2 + '(.*)')
-        if (self._subChar1 == self._subChar2):
-            self.subZeroReplace = self._subChar1         # @@ => @
-        else:
-            self.subZeroReplace = self._subChar1 + self._subChar2    # {} => {}
+        self._initSubVar()
         self.chomp = ChompClass(self)
         self.rstrip = self.chomp                         # alias for chomp
         self.srcCode = ''                                # Python code string to be executed
@@ -254,7 +272,6 @@ class FastClass(object):
         self.docUrl = 'doc/fast.md'
         self.line = ''       # current line (string) being parsed
         self.lineNum = 0     # current line number being parsed within main or included file
-        self.filePrefix = re.compile('^file:(.*)')
     def escape(self, s):
         rv = re.sub('\\\\', "\\\\\\\\", s)
         rv = re.sub("'", "\\'", rv)
@@ -360,7 +377,7 @@ class FastClass(object):
             #print('_processSection: printing.. ' + line)
             self.printWithIndent(self.text2text(line));
 
-    def includeSection(self, section):
+    def _includeSectionProcess(self, section):
         #print('includeSection: called with section "' + section + '" ..')
         #for s in self.sections:
         #    print('includeSection: "' + s + '"')
@@ -371,35 +388,38 @@ class FastClass(object):
             self.includeSectionDepth += 1
         tmp = self.tmpSection + str(self.includeSectionDepth)
         +self < tmp
+        self.sections[tmp].isTemporary = True
         if (section in self.sections):
             #print('includeSection: processing section "' + section + '" ..')
             for line in self.getLines(section): ##self.sections[section].text.rstrip(self.newline).splitlines():
                 self._processSection(line)
+            # Remove temporary section
+            if self.sections[section].isTemporary:
+                #print('Deleting temporary section ' + section)
+                del self.sections[section]
         -self
         self.includeSectionDepth -= 1
+        return tmp
+
+    def includeSection(self, section):
+        tmp = self._includeSectionProcess(section)
         if (tmp in self.sections):
-            self > tmp
-            del self.sections[tmp]
+            self.printSection(tmp)
+            #del self.sections[tmp] ## remove my temporary section
         return self
 
     def includeSectionChomp(self, section, c=',', linecc='//'):
-        if (self.includeSectionDepth >= self.recursionLimit):
-            print('fast: FATAL ERROR - includeSection calls exceeded limit of ' + str(self.recursionLimit))
-            raise RuntimeError('fast: FATAL ERROR - includeSection calls exceeded limit of ' + str(self.recursionLimit))
-        else:
-            self.includeSectionDepth += 1
-        tmp = self.tmpSection + str(self.includeSectionDepth)
-        +self < tmp
-        if (section in self.sections):
-            for line in self.getLines(section): ##self.sections[section].text.rstrip(self.newline).splitlines():
-                self._processSection(line)
-        -self
-        self.includeSectionDepth -= 1
+        tmp = self._includeSectionProcess(section)
         if (tmp in self.sections):
-            self.chomp(c, linecc) > tmp
-            del self.sections[tmp]
+            self.chomp(c, linecc).printSection(tmp)
+            #del self.sections[tmp]
         return self
-    
+
+    def addImportPath(self, path):
+        if (os.path.exists(path)):
+            sys.path.insert(0, path)
+        return self
+
     def include(self, fn, skipFirstLines=0):
         #print('Opening file: ' + fn + ' skipFirstLines=' + str(skipFirstLines))
         fn = self._findFile(fn)
@@ -431,14 +451,14 @@ if ('FAST_INC_PATH' in os.environ):
 _insertIfExists(os.getcwd() + '/pkg')
 sys.path.insert(0, os.getcwd())
 import fast_classes
+re = fast_classes.re
+time = fast_classes.time
+textwrap = fast_classes.textwrap
 fast = fast_classes.FastClass(dict())
 (info,doc,args) = fast_classes.setup(fast, installPath, True)
 
 #------------------ FAST GLOBALS GO HERE -------------------------
 # Note: Your global vars, if you define any, must be added to this script manually.
-
-
-
 
 
 
@@ -451,7 +471,7 @@ fast_classes.info(fast, args)
 ''')
     def printme(self):
         exec(self.srcCode, self.globalvars)
-    def createSection(self,_section):
+    def createSection(self, _section=''):
         return SectionBase(self, _section)
     def printWithIndent(self,s):
         if (len(self.section) == 0):
@@ -502,28 +522,30 @@ fast_classes.info(fast, args)
                     self.sections[self.section] = self.createSection(self.section)
                 for s in self.getLines(section):
                     self.sections[self.section] += self.indent + s + self.newline
+        # Remove temporary section
+        if self.sections[section].isTemporary:
+            #print('Deleting temporary section ' + section)
+            del self.sections[section]
         return self
     def dedentSection(self,section):
         if (section in self.sections):
             self.sections[section].setText(textwrap.dedent(self.sections[section].getText()))
         return self
-    def copyUnsealedFileSection(self, fn):
+    def copyUnsealedFileSection(self, sfn):
         # Write unsealed fn section to the temporary section
-        sec = 'file:' + fn
         tmp = self.tmpSection
         +self < tmp
-        self > sec   # calls includeSection to process placeholders
+        self > sfn   # calls includeSection to process placeholders
         -self
-        del self.sections[sec]  # remove fn section
+        del self.sections[sfn]  # remove fn section
         #self <= tmp  # dedent temp section
         return tmp
     def writeFile(self, sfn, fn, chompMe=False, c=',', linecc='//'):
         if ((not self.infoFlag) and (sfn in self.sections)):
             if (self.sealIncludeSection):
-                tmpSealState = self.sealIncludeSection ## saved to restore later
                 self.unseal()  ## unseal all included subsections
                 tmp = self.copyUnsealedFileSection(sfn)
-                self.sealIncludeSection = tmpSealState ## return seal state
+                self.sealIncludeSection = True
             else:
                 tmp = sfn  ## do not unseal
             if (chompMe):
@@ -533,25 +555,43 @@ fast_classes.info(fast, args)
                     file.write(s + self.newline)
             del self.sections[tmp]
         return self
+    def writeFiles(self):
+        z = self.sections.copy()  ## copy
+        for x in z:
+            #print('Writing section ' + x)
+            z[x].write()
     def __pos__(self):  ## (push)
         self.stack += [self.section, self.enable, self.indent]
         self.enable = False
         self.section = ''
         self.indent = ''
         return self
+    def setFileName(self, fn=''):
+        secObj = self[self.section]
+        if (secObj):
+            fn = fn if fn else self.section
+            secObj(fn)
+            return True
+        else:
+            return False
+    def getFileName(self):
+        secObj = self[self.section]
+        fn = secObj.fn if secObj else ''
+        return fn
     def __neg__(self):  ## (pop)
-        #print(self.section)
-        m = re.match(self.filePrefix, self.section)
-        if (m):
-            #print('write file..')
-            #print(m.group(1))
-            self.writeFile(self.section, m.group(1))
+        #fn = self.getFileName()
+        #if (fn):
+            #self.writeFile(self.section, fn)
+        #    self[self.section].write(fn)
         self.indent = self.stack.pop()
         self.enable = self.stack.pop()
         self.section = self.stack.pop()
         return self
     def __getitem__(self, _section):
-        return self.sections[_section]
+        if (_section in self.sections):
+            return self.sections[_section]
+        else:
+            return None
     def __call__(self, cs='', tsflag=True):
         if (not self.infoFlag):
             cs = cs or self.commentString
@@ -578,7 +618,8 @@ fast_classes.info(fast, args)
     def __rshift__(self, x):
         self.indent += ' ' * x
     def __gt__(self, x):
-        if (self.sealIncludeSection):
+        if (self.sealIncludeSection and len(self.section)):
+            #print('Printing placeholder for section ' + x)
             self.printWithIndent(self.commentString + self.codeChar + "fast.includeSection('" + x + "')")
         else:
             self.includeSection(x)
@@ -601,14 +642,14 @@ fast_classes.info(fast, args)
                 self.section = ''
                 self.enable = True
             else:
-                self.pop()
+                -self
                 self.stack += [self.section, self.enable, self.indent]
         else:
             self.section = x
+            if (self.section not in self.sections):
+                self.sections[self.section] = self.createSection(self.section)
     def __le__(self, x):
         self.dedentSection(x)
-    def __gt__(self, x):
-        self.printSection(x)
     def __ge__(self, x):
         self.printWithIndent(x)
     def off(self):
@@ -629,18 +670,19 @@ fast_classes.info(fast, args)
             print('fast.removeLastChar(): ERROR - No section specified')
         if (x in self.sections):
             buf = self.sections[x].getText().rstrip(self.newline).splitlines()
-            if (len(commentStr)):
-                m = re.match(re.compile('^(.*?)(' + c + '?)(\s*)' + commentStr + '(.*)$'), buf[-1])
-                if (m):
-                    s = m.group(3)  # keep spacing to line comment the same
-                    if (m.group(2) == c):
-                        s += ' '
-                    buf[-1] = m.group(1) + s + commentStr + m.group(4)
+            if (len(buf)):
+                if (len(commentStr)):
+                    m = re.match(re.compile('^(.*?)(' + c + '?)(\s*)' + commentStr + '(.*)$'), buf[-1])
+                    if (m):
+                        s = m.group(3)  # keep spacing to line comment the same
+                        if (m.group(2) == c):
+                            s += ' '
+                            buf[-1] = m.group(1) + s + commentStr + m.group(4)
+                    else:
+                        buf[-1] = buf[-1].rstrip().rstrip(c)
                 else:
                     buf[-1] = buf[-1].rstrip().rstrip(c)
-            else:
-                buf[-1] = buf[-1].rstrip().rstrip(c)
-            self.sections[x].setText(self.newline.join(buf) + self.newline)
+                    self.sections[x].setText(self.newline.join(buf) + self.newline)
         else:
             print('fast.removeLastChar(): ERROR - ' + x + ' is not a defined section')
         return self

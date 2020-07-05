@@ -19,19 +19,19 @@ into executable Python code and executes it. To run:
     '///' or '//.'), these can be fixed with
     variable substitutions as follows:
 
-    @@fast.commentString@@/ -text-
+    @@fast.commentString@@/ <text>
 
 which will output
 
-    @fast.commentString@/ -text-
+    @fast.commentString@/ <text>
 
 or
 
-    @@fast.commentString@@. -text-
+    @@fast.commentString@@. <text>
 
 which will output
 
-    @fast.commentString@. -text-
+    @fast.commentString@. <text>
 
 If there are many such cases, consider
 using a different comment string with
@@ -45,7 +45,7 @@ fast.codePrefix.
     
     python fast.py <template file>
 
-(7) Add Python code lines and text lines with
+(5) Add Python code lines and text lines with
 Python expression substitutions where desired.
 
 ## Templating Rules
@@ -118,19 +118,20 @@ and inserted into the template text line.
 For info on the available builtin FAST methods,
 use the -i option:
 
-    fast.py -i all /dev/null
+    python fast -i all /dev/null
 
 or
 
-    my.fast -i all
+    python fast my.fast -i all
 
-Then for help on a specific FAST method:
+Then for help on a specific FAST method such
+as __pos__:
 
-    fast.py -i fast.push /dev/null
+    python fast -i fast.__pos__ /dev/null
 
 or
 
-    my.fast -i fast.push
+    python fast my.fast -i fast.__pos__
 
 # FAST Built-in Class Objects and Methods
 
@@ -218,7 +219,7 @@ Example
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.__lshift__'
-__lshift__(n) fast<<n decreases output indent by n spaces
+__lshift__(n) or fast<<n decreases output indent by n spaces
 //.-fast.info
 -----------------------------------------------------
 //.+fast < 'Example1'
@@ -228,7 +229,7 @@ __lshift__(n) fast<<n decreases output indent by n spaces
 //.-fast
 -----------------------------------------------------
 //.+fast.info < 'fast.__lt__'
-__lt__(x) fast<x sets current section (fast.section) to x
+__lt__(x) or fast<x sets current section (fast.section) to x
 
 A typical usage is shown in the example below. The unary
 operator, '+', pushes current context prior to setting
@@ -238,12 +239,12 @@ unary operator, '-', pops the previously pushed context.
 
 Example
 
-    //.fast > 'Example1'
+    //.fast.printSection('Example1')
     
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.__neg__'
-__neg__() -fast pops (fast.indent,fast.enable,fast.section) from stack
+__neg__() or -fast pops (fast.indent,fast.enable,fast.section) from stack
 
 The unary operator, '-', pops the context previously
 pushed by the unary operator, '+'. In this case, the '<'
@@ -253,30 +254,31 @@ pop must be paired with a previous push.
 
 Example
 
-    //.fast > 'Example1'
+    //.fast.printSection('Example1')
 
 If the current section before the pop (-fast) is a
-file section (i.e. has the prefix 'file:') then the
-current section is written to disk as indicated by
-its file section name.
+file section (i.e. has attribute fn) then the
+current section is written to disk using the
+specified file name ('abc.txt').
 
 Example
 
-    //.fast >= "//.+fast < 'file:abc.txt'"
+    //.fast >= "//.+fast < 'abc.txt'"
+    //.fast >= "//.fast.setFileName()"
     //.fast >= "This line is added to file section abc.txt"
     //.fast >= "//.-fast"
 
-The prefix, 'file:', is included in the section name,
-but not the filename. The method, fast.writeFile is
-called. If sections are sealed, the file section is
-unsealed prior to being written to disk.
+The setFileName method defaults to using the section name
+as the filename if no argument is given. The method,
+fast.writeFile is called. If sections are sealed, the file
+section is unsealed prior to the write.
 
 For more info, see writeFile, seal, and unseal
 
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.__pos__'
-__pos__() +fast pushes (fast.section,fast.enable,fast.indent) onto stack
+__pos__() or +fast pushes (fast.section,fast.enable,fast.indent) onto stack
 
 The unary operator, '+', pushes the context to the stack
 and turns off standard output. (It does not turn off
@@ -289,7 +291,7 @@ way to restore the current section later with a pop.
 
 Example
 
-    //.fast > 'Example1'
+    //.fast.printSection('Example1')
 
 
 Another common use is if there are lines you do not
@@ -310,7 +312,7 @@ in confusing errors making debugging it quite difficult.
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.__rshift__'
-__rshift__(n) fast>>n increases output indent by n spaces
+__rshift__(n) or fast>>n increases output indent by n spaces
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.dedentSection'
@@ -345,14 +347,61 @@ column 1, which has no indention.)
 -----------------------------------------------------
 //.+fast.info < 'fast.escapeSubChars'
 escapeSubChars(s) escapes substitution characters
+
+s - string to be escaped
+
+Sections must be sealed when calling this method.
+The returned string escapes the substitution
+characters so that it yields the desired string
+when processed.
+
+Example
+
+    //.fast >= "emailAddr = 'joe@foo.net'"
+    //.fast >= "emailAddrEsc = fast.escapeSubChars(emailAddr)"
+
+//.-fast.info
+-----------------------------------------------------
+//.+fast.info < 'fast.getLines'
+getLines(x) returns list of lines of section x
+//.-fast.info
+-----------------------------------------------------
+//.+fast.info < 'fast.getSection'
+getSection(x) gets text (contents) of section x
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.include'
 include(fn, [skipFirstLines]) includes FAST file
+
+fn             - filename of FAST file to load
+skipFirstLines - number of header lines to skip
+
+Note: Unlike other methods, this must be called
+      immediately during parsing, so be sure to
+      use the line prefix, '///'.
+      
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.includeSection'
 includeSection(x) includes section x
+
+This method is usually not called directly.
+When the '>' operator is used, this method is called
+if sections are unsealed (i.e. fast.sealIncludeSection
+is False) or you are writing to stdout rather than
+into a section, otherwise it outputs a placeholder
+line of code to call this method whenever it is
+unsealed.
+
+Example
+
+    //.fast >= "+fast < 'xyz' ## write into section xyz"
+    //.fast >= "fast.seal()"
+    //.fast >= "fast > 'abc'  ## sealed"
+    //.fast >= "fast.unseal()"
+    //.fast >= "fast > 'abc'  ## unsealed"
+    //.fast >= "-fast"
+
 //.-fast.info
 -----------------------------------------------------
 //.+fast.info < 'fast.off'
@@ -416,5 +465,10 @@ unseal() useals all sections
 writeFile(sfn, fn, [chompMe], [c], [cs]) writes section sfn to disk as fn
 //.-fast.info
 -----------------------------------------------------
+//.+fast.info < 'fast.setSection'
+setSection(x, text) sets text of section x
+//.-fast.info
+-----------------------------------------------------
 
+//.del fast.sections['Example1'] ## Done with example section
 //.-fast
