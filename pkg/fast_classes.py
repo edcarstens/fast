@@ -191,7 +191,7 @@ class FastClass(object):
     """ fast class """
     
     version = '1.0.0'
-    newline = '\r\n'
+    newline = '\n'
 
     def subChar(self, x=''):
         if (x):
@@ -402,6 +402,7 @@ class FastClass(object):
         return tmp
 
     def includeSection(self, section):
+        #print('includeSection: ' + self.section + ':' + section + '\n')
         tmp = self._includeSectionProcess(section)
         if (tmp in self.sections):
             self.printSection(tmp)
@@ -409,6 +410,7 @@ class FastClass(object):
         return self
 
     def includeSectionChomp(self, section, c=',', linecc='//'):
+        #print('includeSectionChomp: ' + self.section + ':' + section + '\n')
         tmp = self._includeSectionProcess(section)
         if (tmp in self.sections):
             self.chomp(c, linecc).printSection(tmp)
@@ -666,6 +668,7 @@ fast_classes.info(fast, args)
                     rv += [line]
         return rv
     def removeLastChar(self, x, c=',', commentStr='//'):
+        #print('fast.removeLastChar(): NOTE - Removing last character (' + c + ') from section "' + x + '"')
         if (x == ''):
             print('fast.removeLastChar(): ERROR - No section specified')
         if (x in self.sections):
@@ -682,7 +685,7 @@ fast_classes.info(fast, args)
                         buf[-1] = buf[-1].rstrip().rstrip(c)
                 else:
                     buf[-1] = buf[-1].rstrip().rstrip(c)
-                    self.sections[x].setText(self.newline.join(buf) + self.newline)
+                self.sections[x].setText(self.newline.join(buf) + self.newline)
         else:
             print('fast.removeLastChar(): ERROR - ' + x + ' is not a defined section')
         return self
