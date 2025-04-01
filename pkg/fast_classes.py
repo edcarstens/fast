@@ -165,7 +165,12 @@ class DocClass(InfoClass):
         self.fast >= self.escape('## ' + x)
     def process(self, x):
         text = self.fast.getSection(x)
-        ntext = self.escape(text)
+        ntext = ''
+        for line in text.splitlines():
+            if (not line.startswith('    ')):
+                line = self.escape(line)
+            ntext += line + self.fast.newline
+            
         ## Create a new section for ntext
         z = self.fast.createSection()
         self.fast.setSection(z.section, ntext)

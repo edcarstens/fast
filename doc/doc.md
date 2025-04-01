@@ -429,9 +429,9 @@ method, make a new class extended from Section.
 Example
 
     //.class MyReadData(Section):{
-    //.  def \_\_init\_\_(self):{
+    //.  def __init__(self):{
     //.    self.data = []
-    //.    super(MyReadData, self).\_\_init\_\_()
+    //.    super(MyReadData, self).__init__()
     //.  }
     //.  def process:{
     //.    for line in self.getLines():{
