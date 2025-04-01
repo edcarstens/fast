@@ -1,0 +1,32 @@
+## Bash script to run full regression
+
+python fast test/basic/test.fast > test/basic/test.txt
+diff test/basic/expected/test.txt test/basic/test.txt
+if [ $? = 0 ]; then
+    echo PASS
+else
+    echo FAIL
+fi
+
+python fast test/sections/test.fast > test/sections/test.txt
+mv top.txt test/sections
+mv testfile.txt test/sections
+diff test/sections/expected/test.txt test/sections/test.txt
+if [ $? = 0 ]; then
+    echo PASS
+else
+    echo FAIL
+fi
+diff test/sections/expected/top.txt test/sections/top.txt
+if [ $? = 0 ]; then
+    echo PASS
+else
+    echo FAIL
+fi
+diff test/sections/expected/testfile.txt test/sections/testfile.txt
+if [ $? = 0 ]; then
+    echo PASS
+else
+    echo FAIL
+fi
+

@@ -18,7 +18,7 @@ def setup(fast, installPath, forDebug=False):
         formatter_class = argparse.RawDescriptionHelpFormatter,
         description = 'Features And Sections Templater (FAST)',
         epilog = textwrap.dedent('''\
-        See complete documentation in pet/doc
+        See complete documentation in fast/doc
         '''))
     parser.add_argument('-i', default='', metavar='<func>',
                     help = 'If <func> = all, report short help info on all existing functions; otherwise, report help info on specified function. These are builtin FAST methods as well as user-defined functions or class methods, called within the FAST file.')
@@ -190,7 +190,7 @@ class DocClass(InfoClass):
 class FastClass(object):
     """ fast class """
     
-    version = '1.0.0'
+    version = '1.0.1'
     newline = '\n'
 
     def subChar(self, x=''):
@@ -272,20 +272,33 @@ class FastClass(object):
         self.docUrl = 'doc/fast.md'
         self.line = ''       # current line (string) being parsed
         self.lineNum = 0     # current line number being parsed within main or included file
+        self.text2codeSubs = []     # substitutions list for reduced codesize improvement
+        self.inTemplateText = False # in template text flag (reduced codesize)
+        self.templateText = ''      # buffer of current template text (reduced codesize)
+        self.unsealBeforeWrite = True  ## File section is always unsealed before writing to file
+    def update_globals(self, globalvars):
+        #print('update_globals:')
+        #print(globalvars)
+        self.globalvars = globalvars
     def escape(self, s):
         rv = re.sub('\\\\', "\\\\\\\\", s)
         rv = re.sub("'", "\\'", rv)
+        rv = re.sub("%", "%%", rv)
         return rv
     def text2code(self, line):
         m = re.match(self.subVar, line)
         if (m):
             if len(m.group(2))==0:
-                return "'" + self.escape(m.group(1)) + self.subZeroReplace + "'+" + self.text2code(m.group(3))
+                #return "'" + self.escape(m.group(1)) + self.subZeroReplace + "'+" + self.text2code(m.group(3))
+                return self.escape(m.group(1)) + self.subZeroReplace + self.text2code(m.group(3) + self.newline)
             else:
-                return "'" + self.escape(m.group(1)) + "'+str(" + m.group(2) + ")+" + self.text2code(m.group(3))
+                self.text2codeSubs.append(m.group(2))
+                return self.escape(m.group(1)) + "%s" + self.text2code(m.group(3) + self.newline)
         else:
-            return "'" + self.escape(line) + "'"
+            return self.escape(line)
     def text2text(self, line):
+        #print("text2text:")
+        #print(self.globalvars)
         m = re.match(self.subVar, line)
         if (self.enableSealedSubstitution and m):
             if len(m.group(2))==0:
@@ -322,6 +335,23 @@ class FastClass(object):
         # Unable to find it
         return fn
 
+    def finishTemplateText(self):
+        if (self.inTemplateText):
+            if (not self.templateText):
+                self.srcCode = self.srcCode[:-12] + "fast.pwi('')" + self.newline
+            else:
+                self.templateText += "'''"
+                if (self.text2codeSubs):
+                    self.srcCode += self.templateText + " % (" + ",".join(self.text2codeSubs) + ")"
+                else:
+                    ## undo the % -> %% escaping in templateText
+                    self.templateText = re.sub("%%", "%", self.templateText)
+                    self.srcCode += self.templateText
+                self.srcCode += ")" + self.newline
+            self.inTemplateText = False
+            self.text2codeSubs = []
+            self.templateText = ''
+
     def _process(self, fn):
         line = self.line
         lineNum = self.lineNum
@@ -330,37 +360,40 @@ class FastClass(object):
         ci = ' '*self.codeIndent  # code indention (string of spaces)
         if (m0): # this is Python code to be executed now
             #print('Executing: ' + m0.group(1))
+            #print(self.globalvars)
             exec(m0.group(1) + self.newline, self.globalvars)
         elif (m1): # this is Python code for 2nd pass
             #indent = len(m1.group(1)) # output indent
-            indent = m1.group(1) # output indent string
-            if (re.match(r'^#', m1.group(3))):
-                m2 = False
-                m3 = False
-                m4 = False
-            else:
+            if (not re.match(r'^#', m1.group(3))):
+                self.finishTemplateText()
+                indent = m1.group(1) # output indent string
                 m2 = re.match(r'^(.*:)\{\s*$', m1.group(3)) or re.match(r'^(.*:)\{\s*#', m1.group(3)) # begin code block
                 m3 = re.match(r'\{\s*$', m1.group(3)) or re.match(r'\{\s*#', m1.group(3)) # begin code block
                 m4 = re.match(r'\}\s*$', m1.group(3)) or re.match(r'\}\s*#', m1.group(3)) # end code block
-            if (self.codeIndent == 0): # ignore spaces in line if within code brackets { .. }
-                ci = m1.group(2)       # code indention (string of spaces specified in the line)
-            if (m2):
-                self.srcCode += ci +  m2.group(1) + self.newline
-                self.codeIndent += 1
-            elif (m3):
-                self.codeIndent += 1
-            elif (m4):
-                self.codeIndent -= 1
-                if (self.codeIndent < 0):
-                    print('fast: ERROR at line ' + str(lineNum) + ' in file ' + fn + ' - "' + line + '"\n')
-                    print('fast: ERROR at line ' + str(lineNum) + ' in file ' + fn + ' - "}" (code block end) has no matching "{" (code block begin)')
-                    self.codeIndent = 0
-            else:
-                self.srcCode += self.indentCodeLine(indent, ci)  # support output-indented function calls
-                self.srcCode += ci +  m1.group(3) + self.newline
-                self.srcCode += self.dedentCodeLine(indent, ci)
+                if (self.codeIndent == 0): # ignore spaces in line if within code brackets { .. }
+                    ci = m1.group(2)       # code indention (string of spaces specified in the line)
+                if (m2):
+                    self.srcCode += ci +  m2.group(1) + self.newline
+                    self.codeIndent += 1
+                elif (m3):
+                    self.codeIndent += 1
+                elif (m4):
+                    self.codeIndent -= 1
+                    if (self.codeIndent < 0):
+                        print('fast: ERROR at line ' + str(lineNum) + ' in file ' + fn + ' - "' + line + '"\n')
+                        print('fast: ERROR at line ' + str(lineNum) + ' in file ' + fn + ' - "}" (code block end) has no matching "{" (code block begin)')
+                        self.codeIndent = 0
+                else:
+                    self.srcCode += self.indentCodeLine(indent, ci)  # support output-indented function calls
+                    self.srcCode += ci +  m1.group(3) + self.newline
+                    self.srcCode += self.dedentCodeLine(indent, ci)
         else: # plain text possibly with Python expression substitutions
-            self.srcCode += ci + 'fast.printWithIndent(' + self.text2code(line.rstrip(self.newline)) + ')' + self.newline
+            if (self.inTemplateText):
+                self.templateText += self.text2code(line)
+            else:
+                self.srcCode += ci + 'fast.pwi(' + self.newline + "'''"
+                self.templateText = self.text2code(line)
+                self.inTemplateText = True
 
     def _processSection(self, line):
         #print('_processSection called with line below')
@@ -371,6 +404,7 @@ class FastClass(object):
             indent = m1.group(1) # output indent string
             self.indent+=indent
             #print('_processSection: evaluating.. ' + m1.group(3))
+            #print(self.globalvars)
             exec(m1.group(3) + self.newline, self.globalvars)
             self.indent=self.indent[0:len(self.indent)-len(indent)]
         else: # plain text possibly with Python expression substitutions
@@ -433,6 +467,7 @@ class FastClass(object):
                     self.firstLine = self.line
                 if (self.lineNum > skipFirstLines):
                     self._process(fn)
+        self.finishTemplateText()
         return self
 
     def printCode(self):
@@ -446,17 +481,18 @@ def _insertIfExists(x):
 if ('FAST_INSTALL_PATH' in os.environ):
     installPath = os.environ['FAST_INSTALL_PATH']
 else:
-    installPath = '~/python/pet'
+    installPath = '~/python/fast'
 _insertIfExists(installPath + '/pkg')
 if ('FAST_INC_PATH' in os.environ):
     _insertIfExists(os.environ['FAST_INC_PATH'])
 _insertIfExists(os.getcwd() + '/pkg')
 sys.path.insert(0, os.getcwd())
 import fast_classes
+global fast,re,time,textwrap,info,doc,args
 re = fast_classes.re
 time = fast_classes.time
 textwrap = fast_classes.textwrap
-fast = fast_classes.FastClass(dict())
+fast = fast_classes.FastClass(globals())
 (info,doc,args) = fast_classes.setup(fast, installPath, True)
 
 #------------------ FAST GLOBALS GO HERE -------------------------
@@ -465,7 +501,7 @@ fast = fast_classes.FastClass(dict())
 
 
 
-
+fast.update_globals(globals())
 #------------------ FAST STARTS HERE AT LINE 31 ------------------''')
         print(self.srcCode)
         print('''\
@@ -484,6 +520,11 @@ fast_classes.info(fast, args)
                 self.sections[self.section] = self.createSection(self.section)
             #print('Dumping "' + s + '" to section "' + self.section + '"')
             self.sections[self.section] += self.indent + s + self.newline
+        return self
+    def pwi(self, buf):
+        # Calls printWithIndent for each line in buf (reduce codesize)
+        for line in buf.splitlines():
+            self.printWithIndent(line)
         return self
     def getInfoSectionHeader(self,section):
         #line1 = self.sections[section].getText().split(self.newline)[0]
@@ -544,7 +585,7 @@ fast_classes.info(fast, args)
         return tmp
     def writeFile(self, sfn, fn, chompMe=False, c=',', linecc='//'):
         if ((not self.infoFlag) and (sfn in self.sections)):
-            if (self.sealIncludeSection):
+            if (self.unsealBeforeWrite and self.sealIncludeSection):
                 self.unseal()  ## unseal all included subsections
                 tmp = self.copyUnsealedFileSection(sfn)
                 self.sealIncludeSection = True

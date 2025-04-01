@@ -53,24 +53,25 @@ class SectionBase(object):
         -self.fast
         self.process()
         return self
-    def _gt_helper(self, subsection, _fast):
+    def _gt_helper(self, subsection):
         """ helper function for implementing __gt__ and chomp.__gt__ """
         if (len(subsection)):
             x = self.makeValidName(subsection)
             sub = getattr(self, x)
             #print('_gt_helper created ' + sub.section + ' and ' + x)
-            _fast > sub.section
+            mysec = sub
         else:
-            if (self.processEnable):
-                self.processEnable = False  # process only once
-                if (self.fast.sealIncludeSection and len(self.fast.section)):
-                    self.fast.printWithIndent(self.fast.commentString + self.fast.codeChar + "fast.sections['" + self.section + "'].processFinal()")
-                else:
-                    self.processFinal()
-            _fast > self.section
-            
+            mysec = self
+        
+        if (self.processEnable):
+            self.processEnable = False  # process only once
+            if (self.fast.sealIncludeSection and len(self.fast.section)):
+                self.fast.printWithIndent(self.fast.commentString + self.fast.codeChar + "fast.sections['" + mysec.section + "'].processFinal()")
+            else:
+                mysec.processFinal()
+        self.fast > mysec.section
     def __gt__(self, subsection):
-        self._gt_helper(subsection, self.fast)
+        self._gt_helper(subsection)
     def write(self, fn=''):
         if (len(fn) == 0):
             if (self.fn):
@@ -132,4 +133,5 @@ class SectionChompClass(object):
         self.linecc = lcc
         return self
     def __gt__(self, x):
-        self.parent._gt_helper(x, self.fast.chomp(self.c, self.linecc))
+        self.fast.chomp(self.c, self.linecc)
+        self.parent._gt_helper(x)

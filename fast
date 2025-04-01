@@ -16,7 +16,7 @@ def _insertIfExists(x):
 if ('FAST_INSTALL_PATH' in os.environ):
     installPath = os.environ['FAST_INSTALL_PATH']
 else:
-    installPath = '~/python/pet'
+    installPath = '~/python/fast'
 #if ('USER' in os.environ):
 #    _insertIfExists('/user/' + os.environ['USER'] + '/python')
 _insertIfExists(installPath + '/pkg')
@@ -26,10 +26,12 @@ _insertIfExists(os.getcwd() + '/pkg')
 sys.path.insert(0, os.getcwd())
 
 import fast_classes
+global fast,re,time,textwrap,info,doc,args
 re = fast_classes.re
 time = fast_classes.time
 textwrap = fast_classes.textwrap
 fast = fast_classes.FastClass(globals())
 (info, doc, args) = fast_classes.setup(fast, installPath)
+fast.update_globals(globals())
 fast_classes.process(fast)
 fast_classes.info(fast, args)
